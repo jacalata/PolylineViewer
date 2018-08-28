@@ -1,0 +1,67 @@
+
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title>Polyline Viewer</title>
+
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.2.1.min.js"></script>
+
+    <!-- Leaflet -->
+    <script src="http://cdn.leafletjs.com/leaflet-0.7/leaflet.js"></script>
+    <script type="text/javascript" src="https://rawgit.com/jieter/Leaflet.encoded/master/Polyline.encoded.js"></script>
+    <link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet-0.7/leaflet.css" />
+    <!-- Stamen map tiles -->
+    <script type="text/javascript" src="http://maps.stamen.com/js/tile.stamen.js?v1.3.0"></script>
+
+    <!-- Include the Tableau Extensions library so we can communicate with Tableau -->
+    <script src="/lib/tableau-extensions-1.latest.js"></script>
+
+    <!-- Our extension's code -->
+    <script src="./PolylineViewer.js"></script>
+  </head>
+  <body>
+    <div class="title">Route map</div>
+
+    <div class="container-fluid">
+      <!-- Interactive UI -->
+      <div id="selected_marks">
+        <h4>
+          Marks for <span class="sheet_name" id="selected_marks_title"></span>
+          <button title="Select Sheet" type="button" class="btn btn-link" id="show_choose_sheet_button">
+            <span class="glyphicon glyphicon-cog" aria-hidden="true">Select Sheet</span>
+          </button>
+        </h4>
+        <div id="data_table_wrapper"></div>
+      </div>
+    </div>
+
+    <div id="choose_sheet_dialog" class="modal fade" role="dialog">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <button type="button" id="close_choose_sheet" class="close" data-dismiss="modal">&times;</button>
+            <h4 class="modal-title">Choose a Sheet from <span class="sheet_name" id="choose_sheet_title"></span></h4>
+          </div>
+          <div class="modal-body">
+            <div id="choose_sheet_buttons"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+    <div id="map" style="width: 90%; height: 90%; min-height: 250px; position: absolute"></div>
+    <div class="credits">
+      <!-- normally this should be on the tiles, including as backup -->
+      Map tiles by <a href="http://stamen.com">Stamen Design</a>, under <a href="http://creativecommons.org/licenses/by/3.0">CC BY 3.0</a>. Data by <a href="http://openstreetmap.org">OpenStreetMap</a>, under <a href="http://www.openstreetmap.org/copyright">ODbL</a>.
+    </div>
+
+    <div id="no_data_message">
+      <h5>No marks selected</h5>
+    </div>
+  </head>
+</html>
