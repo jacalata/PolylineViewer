@@ -114,7 +114,7 @@ var polylineViewer = {
 
   /* hides the choose sheet UI */
   hideSelectSheetDialog: function () {
-    $('#choose_sheet_dialog').hide()
+    $('#choose_sheet_dialog').css("visibility", "collapse")
   },
   /**
    * Shows the choose sheet UI. Once a sheet is selected, the data table for the sheet is shown
@@ -129,7 +129,7 @@ var polylineViewer = {
     $('#choose_sheet_buttons').empty();
     worksheets.forEach(function (worksheet) {
       // Declare our new button which contains the sheet name
-      const button = createButton(worksheet.name);
+      const button = polylineViewer.createButton(worksheet.name);
 
       // Create an event handler for when this button is clicked
       button.click(function () {
@@ -148,7 +148,7 @@ var polylineViewer = {
     });
 
     // now we've built all the buttons, display it
-    $('#choose_sheet_dialog').show()
+    $('#choose_sheet_dialog').css("visibility", "visible")
 
   },
 
@@ -231,7 +231,7 @@ var polylineViewer = {
   },
 
   replaceSelectButtonWithName: function(sheetName){
-    $('#show_choose_sheet_button').hide();
+    polylineViewer.hideSelectSheetDialog();
     $('#chosen_sheet_name').text(sheetName);
     $('#chosen_sheet_name').show();
   },
