@@ -26,11 +26,13 @@ var polylineViewer = {
   sheetData: [],
 
   getDataFromSheet: function (worksheet){
+
+
     let polylines = [];
-    polylineViewer.sheetData = [];
     return worksheet.getSelectedMarksAsync().then(function(marks) {
-      const worksheetData= marks.data[0]; // it's the first table, unless you have a dual-axis chart
-      polylineViewer.log("got selected marks: " + " with " + worksheetData.columns.length + " colulmns")
+
+      const worksheetData = marks.data[0]; // it's the first table, unless you have a dual-axis chart
+      polylineViewer.log("got selected data: " + " with " + worksheetData.columns.length + " columns")
       polylineViewer.log(worksheetData)
 
       if(worksheetData.columns.length == 0){
@@ -41,15 +43,22 @@ var polylineViewer = {
       //activityIdField = "Activity ID";
       //polylineField = "Map Summary Polyline";
       var field = worksheetData.columns.find(column => polylineViewer.nameContains(column.fieldName, "polyline"));
-      var id = worksheetData.columns.find(column => polylineViewer.name == "Activity ID");
+      if (!field){
+        alert("Could not find a column of polylines. Make sure you have a column name including the word 'polyline' in your data.")
+        return;
+      }
+      var selectedId = worksheetData.columns.find(column => polylineViewer.nameContains(column.fieldName,"Activity ID"));
+      if (!selectedId){
+        // generally this will mean they have aggregated stuff
+        alert("Could not find a column of activity IDs. Make sure you have a column name with the title 'Activity ID' in your data.")
+        return;
+      }
       polylineViewer.log("polyline field is " + field.index);
       polylineViewer.log(field);
       for (let row of worksheetData.data) {
-        var itemId = id ?  row[id.index].value : null;
-        polylineViewer.sheetData.push({id: itemId, polyline: row[field.index].value});
+          polylineViewer.sheetData.push({id: row[selectedId.index].value, polyline: row[field.index].value});
       }
       polylineViewer.log(polylineViewer.sheetData[0]);
-      //     polylines = list.filter((el, i, arr) => arr.indexOf(el) === i);
 
       if (polylineViewer.sheetData.length > 0) {
         $('#no_data_message').hide();
@@ -65,7 +74,7 @@ var polylineViewer = {
   map: null,
   initMap: function() {
     // Maps on OpenStreetMap using https://gist.github.com/mneedham/34b923beb7fd72f8fe6ee433c2b27d73
-    var tileLayer = new L.StamenTileLayer("toner");
+    var tileLayer = new L.StamenTileLayer("terrain");
     polylineViewer.map = new L.Map("map", {
         zoom: 12
     });
@@ -88,7 +97,7 @@ var polylineViewer = {
       var routeLine = L.polyline(
           coordinates,
           {
-              color: 'blue',
+              color: 'red',
               weight: 2,
               opacity: .7,
               lineJoin: 'round'
@@ -243,8 +252,8 @@ var polylineViewer = {
 
   log: function (message) {
     console.log(message);
-    $('#no_data_message').show()
-    $('#no_data_message').append("<p>" + message + "</p>");
+    //$('#no_data_message').show()
+    //$('#no_data_message').append("<p>" + message + "</p>");
   }
 
 };
