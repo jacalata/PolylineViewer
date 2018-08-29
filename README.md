@@ -8,7 +8,7 @@ Requirements
 - must be online to run this extension
 
 Usage:
-- clone or download the three files that implement the extension from this repo (PolylineViwere.js, PolylineViewer.html, PolylineViewer.trex) and put them in a directory you can access later.
+- [in progress - need to download the extension and run in dev mode currently]
 - open the workbook that contains your data and create a dashboard. Add the sheet you want to select marks from to map.
 - From the Objects panel, select 'Extension' to add an extension panel to your dashboard. In the dialog that appears, select 'My Extensions' and browse to the directory where you saved the files earlier. Select PolylineViewer.trex
 - Now with the extension available in your dashboard, select items from the sheet and see them mapped out!
