@@ -6,24 +6,23 @@
   $(document).ready(function () {
       initializeButtons();
       hideSelectSheetDialog();
-      tableau.extensions.initializeAsync().then(function () {
-        $('#no_data_message').hide();
-        getUserPolylines();
-      }, function (err) {
-        let errorMessage = "Error while Initializing: " + err.toString();
-        console.log(errorMessage);
-      })
+      tableau.extensions.initializeAsync()
       .catch(function(err) {
         console.log(err);
-        $('#no_data_message').text(err)
-      });
+        log(err)
+      })
+      .then(
+        function () {
+          $('#no_data_message').hide();
+          getUserPolylines();
+        }
+      );
     })
 
 
   function getUserPolylines() {
 
-      let savedSheetName = tableau && tableau.extensions && tableau.extensions.settings
-        && tableau.extensions.settings.get('sheet');
+      let savedSheetName = tableau.extensions.settings && tableau.extensions.settings.get('sheet');
 
       if (savedSheetName) {
         loadSelectedMarks();
@@ -36,15 +35,22 @@
 
     let polylines = [];
     let list = [];
-    worksheet.getUnderlyingDataAsync().then(dataTable => {
-      let field = dataTable.columns[0]; //.find(column => column.fieldName === "Map Summary Polyline");
+    worksheet.getSelectedMarksAsync().then(function(marks) {
+      const worksheetData= marks.data[0]; // usually it's the first table?
+      log("got selected marks: " + worksheetData + " with " + worksheetData.columns.length + " colulmns")
 
-      for (let row of dataTable.data) {
+      // we need to capture the polyline and the activity Id
+      //activityIdField = "Activity ID";
+      //polylineField = "Map Summary Polyline";
+     // let field = worksheetData.columns[0]; //.find(column => column.fieldName === "Map Summary Polyline");
+      log("column 0 is " + worksheetData.columns[0].fieldName)
+       log("column 1 is " + worksheetData.columns[1].fieldName)
+       log("column 2 is " + worksheetData.columns[2].fieldName)
+      for (let row of worksheetData.columns[0].data) {
         list.push(row[field.index].value);
       }
-    $('#no_data_message').text(list.length);
-
-      polylines = list.filter((el, i, arr) => arr.indexOf(el) === i);
+      log(list[0]);
+ //     polylines = list.filter((el, i, arr) => arr.indexOf(el) === i);
     });
     return list;
   }
@@ -91,12 +97,20 @@
    */
   function showChooseSheetDialog () {
 
-    $('#no_data_message').show()
-    $('#no_data_message').text("finding sheets!");
+    log("finding sheets!");
     // Clear out the existing list of sheets
     $('#choose_sheet_buttons').empty();
 
     // Set the dashboard's name in the title
+    if (!tableau.extensions.dashboardContent) {
+      log("faking a dashboard");
+      tableau.extensions = {};
+      tableau.extensions.dashboardContent = {}
+      tableau.extensions.dashboardContent.dashboard = {
+        name: "fake",
+        worksheets: []
+      }
+    }
     const dashboardName = tableau.extensions.dashboardContent.dashboard.name;
     $('#choose_sheet_title').text(dashboardName);
 
@@ -104,7 +118,7 @@
     const worksheets = tableau.extensions.dashboardContent.dashboard.worksheets;
 
     if (worksheets.length == 1){
-       $('#no_data_message').text("only one sheet, don't bug the user");
+       log("only one sheet, don't bug the user");
        loadSelectedMarks(worksheets[0].name);
        return;
     }
@@ -120,12 +134,12 @@
         const worksheetName = worksheet.name;
         tableau.extensions.settings.set('sheet', worksheetName);
         $('#choose_sheet_dialog').hide();
-        $('#no_data_message').text("sheet chosen");
+        log("sheet chosen");
         loadSelectedMarks(worksheetName);
         tableau.extensions.settings.saveAsync().then(function () {
           // Once the save has completed, close the dialog and show the data table for this worksheet
           $('#choose_sheet_dialog').hide();
-          $('#no_data_message').text("settings saved!");
+          log("settings saved!");
         });
       });
 
@@ -159,8 +173,8 @@
     const worksheet = getSelectedSheet(worksheetName);
 
     // look at the marks to get the activity id and the polyline?
-   // getDataFromSheet(worksheet);
-   populateDataTable(worksheet);
+   getDataFromSheet(worksheet);
+   //populateDataTable(worksheet);
 
     // Add an event listener for the selection changed event on this sheet.
     unregisterEventHandlerFunction = worksheet.addEventListener(tableau.TableauEventType.MarkSelectionChanged, function (selectionEvent) {
@@ -169,25 +183,20 @@
     });
   }
 
-  function displayCoordinateInfo(data){
-
-    $('#no_data_message').text("no data found :( ");
-  }
-
 
   function populateDataTable (worksheet) {
 
-    $('#no_data_message').show()
-    $('#no_data_message').text("populating data!");
+    log("populating data from " + worksheet.name);
     worksheet.getUnderlyingDataAsync().then(function(data) {
       // Do some UI setup here: change the visible section and reinitialize the table
       $('#data_table_wrapper').empty();
-      $('#no_data_message').text("gotcha");
 
-      if (data.length > 0) {
-  //      $('#no_data_message').hide();
+      log("got underlying data " + data);
 
-      $('#no_data_message').text("this much data! " + data.length);
+      if (data.totalRowCount > 0) {
+        $('#no_data_message').hide();
+
+        log("this much data! " + data.totalRowCount);
         $('#data_table_wrapper').append(`<table id='data_table' class='table table-striped table-bordered'></table>`);
 
         // Do some math to compute the height we want the data table to be
@@ -206,7 +215,7 @@
           dom: "<'row'<'col-sm-6'i><'col-sm-6'f>><'row'<'col-sm-12'tr>>" // Do some custom styling
         });
       } else {
-          displayCoordinateInfo();
+          log("data length 0 :(");
       }
     })
   }
@@ -227,6 +236,12 @@
       return sheet.name === worksheetName;
     });
   }
+
+  function log(message) {
+    $('#no_data_message').show()
+    $('#no_data_message').append("<p>" + message + "</p>");
+  }
+
 
 })();
 
