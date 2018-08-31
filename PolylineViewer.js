@@ -14,6 +14,8 @@ var polylineViewer = {
     this.log("saved sheet name? '" + polylineViewer.savedSheetName + "'");
     if (polylineViewer.savedSheetName == "" || polylineViewer.savedSheetName == undefined){
       polylineViewer.savedSheetName = null;
+      $('#no_data_message').show();
+      $('#map').hide()
     }
     else {
       polylineViewer.replaceSelectButtonWithName(polylineViewer.savedSheetName);
@@ -33,7 +35,7 @@ var polylineViewer = {
   getDataFromSheet: function (worksheet){
 
     return worksheet.getSelectedMarksAsync().then(function(marks) {
-      polylineViewer.sheetData = []; // clear any existing selection
+      var sheetData = []; // clear any existing selection
 
       const worksheetData = marks.data[0]; // it's the first table, unless you have a dual-axis chart
       polylineViewer.log("got selected data: " + " with " + worksheetData.columns.length + " columns")
@@ -62,7 +64,12 @@ var polylineViewer = {
       polylineViewer.log("polyline field is " + field.index);
       polylineViewer.log(field);
       for (let row of worksheetData.data) {
-          sheetData.push({id: row[selectedId.index].value, polyline: row[field.index].value});
+        if (row[field.index].value === "%many-values%"){
+          // skip this row;
+          polylineViewer.log("Too many values selected");
+          continue;
+        }
+        sheetData.push({id: row[selectedId.index].value, polyline: row[field.index].value});
       }
       polylineViewer.log(sheetData[0]);
 
@@ -80,9 +87,8 @@ var polylineViewer = {
   map: null,
   routeLayer: null,
   initMap: function() {
-    // Maps on OpenStreetMap using https://gist.github.com/mneedham/34b923beb7fd72f8fe6ee433c2b27d73
-    var tileLayer = new L.StamenTileLayer("terrain");
-    polylineViewer.routeLayer = L.layerGroup();
+
+    polylineViewer.routeLayer = L.featureGroup();
     polylineViewer.map = new L.Map("map", {
         zoom: 12
     });
@@ -112,15 +118,15 @@ var polylineViewer = {
       return;
     }
     polylineViewer.routeLayer.clearLayers();
-    polylineViewer.log("display route " + encodedRoutes.length)
     var coordinates = [];
     var firstPoint = null;
 
     for (let encoded of encodedRoutes) {
+      polylineViewer.log(encoded);
       var routeLine = L.Polyline.fromEncoded(encoded.polyline);
       // todo - make the color different for each id?
       coordinates = routeLine.getLatLngs();
-      polylineViewer.routesDisplayed = L.polyline(
+      routeLine = L.polyline(
           coordinates,
           {
               color: 'red',
@@ -129,13 +135,16 @@ var polylineViewer = {
               lineJoin: 'round'
           }
       )
-      //todo I accidentally used a really old version of leaflet
-      //routeLine.bindTooltip(encoded.id);
+      // todo: when you select routes on the map, filter the sheet by those ids
+
+      routeLine.bindTooltip(encoded.id);
       polylineViewer.routeLayer.addLayer(routeLine);
     }
+    var boundaries = polylineViewer.routeLayer.getBounds();
+    polylineViewer.log(boundaries)
     polylineViewer.routeLayer.addTo(polylineViewer.map);
-
-    polylineViewer.map.fitBounds(coordinates);
+    polylineViewer.map.fitBounds(boundaries);
+    $('#map').show();
   },
 
 
@@ -149,8 +158,8 @@ var polylineViewer = {
    */
   showChooseSheetDialog: function  () {
 
+    polylineViewer.log("finding sheets!");
     const worksheets = tableau.extensions.dashboardContent.dashboard.worksheets;
-    this.log("finding sheets!");
     // Clear out the existing list of sheets
     // we loop through all of these worksheets and add buttons for each one
 
@@ -253,12 +262,11 @@ var polylineViewer = {
     // Set the dashboard's name in the title
     const dashboardName = tableau.extensions.dashboardContent.dashboard.name
     $('#choose_sheet_title').text(dashboardName);
+    this.log("attaching methods");
+    $('#show_choose_sheet_button').click(polylineViewer.showChooseSheetDialog);
+    $('#close_choose_sheet').click(polylineViewer.hideSelectSheetDialog);
     if (nSheets == 1){
       this.replaceSelectButtonWithName(tableau.extensions.dashboardContent.dashboard.worksheets[0].name);
-    } else {
-      this.log("attaching methods");
-      $('#show_choose_sheet_button').click(this.showChooseSheetDialog);
-      $('#close_choose_sheet').click(this.hideSelectSheetDialog);
     }
   },
 
@@ -325,7 +333,6 @@ function mockTableau(){
     name: 'fake sheet',
     addEventListener:function () { polylineViewer.log("event")},
     getSelectedMarksAsync: function(){ return Promise.resolve(selectedMarksReturnValue)},
-    getUnderlyingDataAsync: function() {return Promise.resolve({data:2})}
   }
   tableau.extensions.dashboardContent.dashboard = {
     name: "fake dashboard",
@@ -336,16 +343,15 @@ function mockTableau(){
 // Wrap in an anonymous function to avoid polluting the global namespace
 (function() {
   $(document).ready(function () {
-
-
     polylineViewer.initMap();
     tableau.extensions.initializeAsync()
     .then(
       function () {
+        polylineViewer.initializeButtonsAndTitles();
         polylineViewer.getUserPolylines();
       },
       function(err){
-        console.this.log("Tableau could not be initialized: " + err);
+        console.log("Tableau could not be initialized: " + err);
         polylineViewer.log(err)
       }
     )
