@@ -32,8 +32,8 @@ var polylineViewer = {
 
   getDataFromSheet: function (worksheet){
 
-    let sheetData = [];
     return worksheet.getSelectedMarksAsync().then(function(marks) {
+      polylineViewer.sheetData = []; // clear any existing selection
 
       const worksheetData = marks.data[0]; // it's the first table, unless you have a dual-axis chart
       polylineViewer.log("got selected data: " + " with " + worksheetData.columns.length + " columns")
@@ -51,12 +51,14 @@ var polylineViewer = {
         alert("Could not find a column of polylines. Make sure you have a column name including the word 'polyline' in your data.")
         return;
       }
-      var selectedId = worksheetData.columns.find(column => polylineViewer.nameContains(column.fieldName,"Activity ID"));
-      if (!selectedId){
-        // generally this will mean they have aggregated stuff
-        alert("Could not find a column of activity IDs. Make sure you have a column name with the title 'Activity ID' in your data.")
-        return;
+      var selectedId = worksheetData.columns.find(column => polylineViewer.nameContains(column.fieldName,"activity"));
+      if (!selectedId){ // just find something to label it with
+        selectedId = worksheetData.columns.find(column => polylineViewer.nameContains(column.fieldName,"name"));
       }
+      if (!selectedId){ // fine, be that way
+        selectedId = worksheetData.columns.find(column => polylineViewer.nameContains(column.fieldName,"polyline"));
+      }
+
       polylineViewer.log("polyline field is " + field.index);
       polylineViewer.log(field);
       for (let row of worksheetData.data) {
@@ -84,10 +86,27 @@ var polylineViewer = {
     polylineViewer.map = new L.Map("map", {
         zoom: 12
     });
+    // Maps on OpenStreetMap using https://gist.github.com/mneedham/34b923beb7fd72f8fe6ee433c2b27d73
+    // updated to current leaflet with https://stackoverflow.com/a/48876054/422315
+    var tileLayer = new L.tileLayer('https://stamen-tiles-{s}.a.ssl.fastly.net/terrain/{z}/{x}/{y}.{ext}', {
+       attribution: 'Map tiles by <a href="http://stamen.com">Stamen Design</a>, <a href="http://creativecommons.org/licenses/by/3.0">CC BY 3.0</a> &mdash; Map data &copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+       subdomains: 'abcd',
+       minZoom: 0,
+       maxZoom: 20,
+       ext: 'png'
+    });
+
     polylineViewer.map.addLayer(tileLayer);
   },
 
   displayMap: function  (encodedRoutes) {
+    polylineViewer.log("displayMap")
+    if (!polylineViewer.map){
+      polylineViewer.initMap();
+    }
+    if (polylineViewer.routesDisplayed) {
+      polylineViewer.map.removeLayer(polylineViewer.routesDisplayed);
+    }
     if (!encodedRoutes){
       polylineViewer.log("no route passed to map");
       return;
@@ -98,10 +117,10 @@ var polylineViewer = {
     var firstPoint = null;
 
     for (let encoded of encodedRoutes) {
-      var polyline = L.Polyline.fromEncoded(encoded.polyline);
+      var routeLine = L.Polyline.fromEncoded(encoded.polyline);
       // todo - make the color different for each id?
-      coordinates = polyline.getLatLngs();
-      var routeLine = L.polyline(
+      coordinates = routeLine.getLatLngs();
+      polylineViewer.routesDisplayed = L.polyline(
           coordinates,
           {
               color: 'red',
@@ -113,7 +132,6 @@ var polylineViewer = {
       //todo I accidentally used a really old version of leaflet
       //routeLine.bindTooltip(encoded.id);
       polylineViewer.routeLayer.addLayer(routeLine);
-      //routeLine.addTo(polylineViewer.map);
     }
     polylineViewer.routeLayer.addTo(polylineViewer.map);
 
@@ -295,10 +313,12 @@ function mockTableau(){
         },
         {
           index: 2,
-          fieldName: 'activityId',
+          fieldName: 'activity_id',
           data: [1,2]
         }
-      ]},
+      ],
+      data: [[1,2,3],[4,5,6],[7,8,9]]
+    },
     ]
   }
   var  worksheet = {
@@ -316,6 +336,8 @@ function mockTableau(){
 // Wrap in an anonymous function to avoid polluting the global namespace
 (function() {
   $(document).ready(function () {
+
+
     polylineViewer.initMap();
     tableau.extensions.initializeAsync()
     .then(
@@ -332,9 +354,10 @@ function mockTableau(){
         console.log("(Outer catch) Tableau could not be initialized: " + err);
         polylineViewer.log(err);
     })
-
-//    mockTableau();
-//    polylineViewer.getUserPolylines();
+/*
+    mockTableau();
+    polylineViewer.getUserPolylines();
+ */
   })
 
 })();
