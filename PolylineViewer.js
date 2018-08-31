@@ -9,12 +9,18 @@ var polylineViewer = {
   },
 
   getUserPolylines: function () {
-    var nSheets = polylineViewer.checkForAvailableSheets() ;
+    var nSheets = polylineViewer.checkForAvailableSheets();
+    polylineViewer.savedSheetName = tableau.extensions.settings && tableau.extensions.settings.get('sheet'),
     this.log("saved sheet name? '" + polylineViewer.savedSheetName + "'");
+    if (polylineViewer.savedSheetName == "" || polylineViewer.savedSheetName == undefined){
+      polylineViewer.savedSheetName = null;
+    }
+    else {
+      polylineViewer.replaceSelectButtonWithName(polylineViewer.savedSheetName);
+    }
     if (nSheets == 0){
       return;
     } else if (polylineViewer.savedSheetName) {
-      $('#show_choose_sheet_button').hide();
       this.loadSelectedMarks(polylineViewer.savedSheetName);
     } else if (nSheets == 1) {
       this.selectSheetAndRun(tableau.extensions.dashboardContent.dashboard.worksheets[0].name);
@@ -23,17 +29,15 @@ var polylineViewer = {
     }
   },
 
-  sheetData: [],
 
   getDataFromSheet: function (worksheet){
 
-
-    let polylines = [];
+    let sheetData = [];
     return worksheet.getSelectedMarksAsync().then(function(marks) {
 
       const worksheetData = marks.data[0]; // it's the first table, unless you have a dual-axis chart
       polylineViewer.log("got selected data: " + " with " + worksheetData.columns.length + " columns")
-      polylineViewer.log(worksheetData)
+      polylineViewer.log(worksheetData);
 
       if(worksheetData.columns.length == 0){
         $('#no_data_message').show();
@@ -56,25 +60,27 @@ var polylineViewer = {
       polylineViewer.log("polyline field is " + field.index);
       polylineViewer.log(field);
       for (let row of worksheetData.data) {
-          polylineViewer.sheetData.push({id: row[selectedId.index].value, polyline: row[field.index].value});
+          sheetData.push({id: row[selectedId.index].value, polyline: row[field.index].value});
       }
-      polylineViewer.log(polylineViewer.sheetData[0]);
+      polylineViewer.log(sheetData[0]);
 
-      if (polylineViewer.sheetData.length > 0) {
+      if (sheetData.length > 0) {
         $('#no_data_message').hide();
       } else {
         $('#no_data_message').show();
       }
-      return polylineViewer.sheetData;
+      return sheetData;
 
     });
 
   },
 
   map: null,
+  routeLayer: null,
   initMap: function() {
     // Maps on OpenStreetMap using https://gist.github.com/mneedham/34b923beb7fd72f8fe6ee433c2b27d73
     var tileLayer = new L.StamenTileLayer("terrain");
+    polylineViewer.routeLayer = L.layerGroup();
     polylineViewer.map = new L.Map("map", {
         zoom: 12
     });
@@ -86,7 +92,8 @@ var polylineViewer = {
       polylineViewer.log("no route passed to map");
       return;
     }
-    polylineViewer.log("display route " + encodedRoutes)
+    polylineViewer.routeLayer.clearLayers();
+    polylineViewer.log("display route " + encodedRoutes.length)
     var coordinates = [];
     var firstPoint = null;
 
@@ -103,9 +110,12 @@ var polylineViewer = {
               lineJoin: 'round'
           }
       )
-     //  routeLine.bindTooltip(encoded.id); todo I accidentally used a really old version of leaflet
-      routeLine.addTo(polylineViewer.map);
+      //todo I accidentally used a really old version of leaflet
+      //routeLine.bindTooltip(encoded.id);
+      polylineViewer.routeLayer.addLayer(routeLine);
+      //routeLine.addTo(polylineViewer.map);
     }
+    polylineViewer.routeLayer.addTo(polylineViewer.map);
 
     polylineViewer.map.fitBounds(coordinates);
   },
@@ -136,10 +146,14 @@ var polylineViewer = {
         // Get the worksheet name and save it to settings.
         const worksheetName = worksheet.name;
         polylineViewer.loadSelectedMarks(worksheetName);
-          selectSheetAndRun(worksheetName).then(function () {
-            // Once the save has completed, close the dialog and show the data table for this worksheet
-            polylineViewer.hideSelectSheetDialog();
-            polylineViewer.log("settings saved!");
+          polylineViewer.selectSheetAndRun(worksheetName).then(function () {
+
+        tableau.extensions.settings.set('sheet', worksheetName);
+        tableau.extensions.settings.saveAsync().then(function() {
+              // Once the save has completed, close the dialog
+              polylineViewer.hideSelectSheetDialog();
+              polylineViewer.log("settings saved!");
+            });
         });
       });
 
@@ -152,7 +166,7 @@ var polylineViewer = {
 
   },
 
-  savedSheetName: tableau.extensions.settings && tableau.extensions.settings.get('sheet'),
+  savedSheetName: null,
   selectSheetAndRun: function(worksheetName){
     polylineViewer.replaceSelectButtonWithName(worksheetName);
     tableau.extensions.settings ? tableau.extensions.settings.set('sheet', worksheetName) : {} ;
@@ -232,8 +246,8 @@ var polylineViewer = {
 
   replaceSelectButtonWithName: function(sheetName){
     polylineViewer.hideSelectSheetDialog();
-    $('#chosen_sheet_name').text(sheetName);
-    $('#chosen_sheet_name').show();
+    $('.chosen_sheet_name').text(sheetName);
+    $('.chosen_sheet_name').show();
   },
 
   getSelectedSheet: function  (worksheetName) {
